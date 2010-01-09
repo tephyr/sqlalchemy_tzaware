@@ -1,6 +1,24 @@
 #!/usr/bin/env python
 # -*- coding: iso-8859-1 -*-
-"""class for sqlalchemy timezone-aware datetime support"""
+"""sqlalchemy timezone-aware datetime support
+
+Usage:
+  Add the following columns to the table definition:
+    Column('utcdate', DateTime),
+    Column('tzname', Unicode),
+    Column('tzoffset', Integer))
+
+  In the mapper, add the following key:
+  'tzawaredate': composite(TZAwareDateTime, 
+                            thetable.c.utcdate, 
+                            thetable.c.tzname,
+                            thetable.c.tzoffset)
+                            
+  The columns can be named anything, but they must exist with those types and be reference in that order.
+"""
+__version_info__ = ('0', '4', '0')
+__version__ = '.'.join(__version_info__)
+__author__ = 'Andrew Ittner <projects@rhymingpanda.com>'
 # stdlib
 from datetime import datetime, timedelta
 
@@ -10,6 +28,11 @@ from dateutil import tz
 class TZAwareDateTime(object):
     """A composite sqlalchemy column that round-trips timezone-aware datetime objects"""
     def __init__(self, utcdt=None, tzname=None, offsetseconds=None, realdate=None):
+        """utcdt: UTC datetime
+        tzname: human-readable timezone name
+        offsetseconds: seconds between local date and UTC
+        realdate: actual date in target timezone
+        """
         if (realdate is None):
             self.utcdt = utcdt
             self.tzname = tzname
@@ -52,6 +75,7 @@ class TZAwareDateTime(object):
         return self.utcdt.astimezone(tz_reconstitute)
     
     def _set_realdate(self, newdate):
+        """use a single datetime with a timezone to set class values"""
         # convert to utc
         self.utcdt = newdate.astimezone(tz.tzutc())
 
