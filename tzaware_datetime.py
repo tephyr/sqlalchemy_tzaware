@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: iso-8859-1 -*-
 """class for sqlalchemy timezone-aware datetime support"""
+# stdlib
+from datetime import datetime, timedelta
+
 # 3rd-party: dateutil <http://labix.org/python-dateutil>
 from dateutil import tz
 
@@ -15,7 +18,7 @@ class TZAwareDateTime(object):
             self._set_realdate(realdate)
             
     def __repr__(self):
-        return "<TZDateTime (%s, offset=)>" % (self.realdate, self.offsetseconds)
+        return "<TZDateTime (%s, offset=%s)>" % (self.realdate, self.offsetseconds)
         
     def __composite_values__(self):
         return [self.utcdt, self.tzname, self.offsetseconds]
