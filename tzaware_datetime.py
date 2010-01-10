@@ -68,11 +68,12 @@ class TZAwareDateTime(object):
         # use offset from UTC (timezone name not guaranteed for roundtrip)
         if self.offsetseconds is None:
             # return date as UTC
-            return self.utcdt
+            return self.utcdt.replace(tzinfo=tz.tzutc())
         else:
             tz_reconstitute = tz.tzoffset(name=None, offset=self.offsetseconds)
             
-        return self.utcdt.astimezone(tz_reconstitute)
+        # get naive date in UTC timezone, convert to non-naive, offset to given timezone
+        return self.utcdt.replace(tzinfo=tz.tzutc()).astimezone(tz_reconstitute)
     
     def _set_realdate(self, newdate):
         """use a single datetime with a timezone to set class values"""
