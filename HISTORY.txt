@@ -1,0 +1,9 @@
+========================
+tzaware_datetime history
+========================
+
+v0.4.0
++++++++
+
+Initial release of API.
+
