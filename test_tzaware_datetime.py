@@ -17,6 +17,7 @@ import dateutil
 from sqlalchemy import MetaData, Table, Column, DateTime, Unicode, Integer
 from sqlalchemy import create_engine
 from sqlalchemy.orm import mapper, relation, composite, create_session, clear_mappers
+from sqlalchemy.orm import CompositeProperty
 
 # module to test
 import tzaware_datetime
@@ -150,6 +151,84 @@ class TestDatabaseAccess(unittest.TestCase):
         self.assertTrue(dates_in_order[0].tzawaredate.realdate == dates_to_add['Rome'][1])
         self.assertTrue(dates_in_order[2].tzawaredate.realdate == dates_to_add['Toronto'][1])
         
+class TestDatabaseSetupHelper(unittest.TestCase):
+    """test the TZAwareDateTime sqlalchemy setup helpers"""
+    def setUp(self):
+        pass
+    
+    def tearDown(self):
+        clear_mappers()
+
+    def test_get_columns(self):
+        """Get Column objects"""
+        # setup table metadata
+        db_metadata = MetaData()
+        table_infomatic = Table('infomatic', db_metadata,
+                          Column('id', Integer, primary_key=True),
+                          Column('info', Unicode(255)),
+                          Column('expectedoffset', Integer))
+        self.assertTrue(len(table_infomatic.columns) == 3)
+        
+        # append 3 TZADT columns
+        tzaware_datetime.helper.append_columns(table_infomatic)
+        
+        self.assertTrue(len(table_infomatic.columns) == 6)
+        
+    def test_get_mapping(self):
+        """retrieve mappings"""
+        # setup table metadata
+        db_metadata = MetaData()
+        table_infomatic = Table('infomatic', db_metadata,
+                          Column('id', Integer, primary_key=True),
+                          Column('info', Unicode(255)),
+                          Column('expectedoffset', Integer))
+        
+        # append 3 TZADT columns
+        tzaware_datetime.helper.append_columns(table_infomatic)
+        
+        # get the mapper dictionary
+        mapper_properties = tzaware_datetime.helper.get_mapper_properties(table_infomatic)
+        
+        self.assertTrue(isinstance(mapper_properties, dict), "Must return a dict")
+        self.assertEqual(len(mapper_properties.keys()), 1, "Must have one key")
+        self.assertTrue(mapper_properties.has_key('tzawaredate'), "Key name must be 'tzawaredate'")
+        self.assertTrue(isinstance(mapper_properties['tzawaredate'], CompositeProperty))
+    
+    def test_whole_enchilada(self):
+        """test entire database"""
+        # create engine
+        db_myengine = create_engine('sqlite:///:memory:', echo=False)
+        
+        # setup table metadata
+        db_metadata = MetaData()
+        table_infomatic = Table('infomatic', db_metadata,
+                          Column('id', Integer, primary_key=True),
+                          Column('info', Unicode(255)),
+                          Column('expectedoffset', Integer))
+        
+        tzaware_datetime.helper.append_columns(table_infomatic)
+        
+        # setup mappings
+        mpr = mapper(InfoMatic, table_infomatic, properties={
+            'info': table_infomatic.c.info,
+            'expectedoffset': table_infomatic.c.expectedoffset,
+            'tzawaredate': composite(tzaware_datetime.TZAwareDateTime, 
+                                     table_infomatic.c.utcdate, 
+                                     table_infomatic.c.tzname,
+                                     table_infomatic.c.tzoffset)
+        })
+        
+        mpr.add_properties(tzaware_datetime.helper.get_mapper_properties(table_infomatic))
+        
+        # create all tables
+        db_metadata.create_all(db_myengine)
+        
+        # create session
+        session = create_session(bind=db_myengine, autocommit=True, autoflush=True)
+    
+        # properly clear sqlalchemy in-memory values
+        session.close()
+        
 class InfoMatic(object):
     """table to hold TZAwareDateTime values"""
     def __init__(self, info, tzawaredate):
@@ -165,6 +244,7 @@ def run_all_tests():
     # add all TestCase subclasses
     allsuites.addTests(unittest.TestLoader().loadTestsFromTestCase(TestBasicClass))
     allsuites.addTests(unittest.TestLoader().loadTestsFromTestCase(TestDatabaseAccess))
+    allsuites.addTests(unittest.TestLoader().loadTestsFromTestCase(TestDatabaseSetupHelper))
     unittest.TextTestRunner(verbosity=2).run(allsuites)
 
 if __name__ == '__main__':

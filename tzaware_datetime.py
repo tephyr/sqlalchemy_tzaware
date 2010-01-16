@@ -22,8 +22,17 @@ __author__ = 'Andrew Ittner <projects@rhymingpanda.com>'
 # stdlib
 from datetime import datetime, timedelta
 
+# sqlalchemy
+from sqlalchemy import Column, DateTime, Unicode, Integer
+from sqlalchemy.orm import composite
+
 # 3rd-party: dateutil <http://labix.org/python-dateutil>
 from dateutil import tz
+
+# module-level data
+TZAwareDateTimeColumns = (Column('utcdate', DateTime),
+                          Column('tzname', Unicode),
+                          Column('tzoffset', Integer))
 
 class TZAwareDateTime(object):
     """A composite sqlalchemy column that round-trips timezone-aware datetime objects"""
@@ -68,6 +77,8 @@ class TZAwareDateTime(object):
         # use offset from UTC (timezone name not guaranteed for roundtrip)
         if self.offsetseconds is None:
             # return date as UTC
+            if self.utcdt is None:
+                return None
             return self.utcdt.replace(tzinfo=tz.tzutc())
         else:
             tz_reconstitute = tz.tzoffset(name=None, offset=self.offsetseconds)
@@ -89,3 +100,25 @@ class TZAwareDateTime(object):
         self.offsetseconds = self._calc_offset_seconds(newdate.utcoffset())
     
     realdate = property(_get_realdate, _set_realdate)
+
+class helper(object):
+    """functions to insert TZAwareDateTime into database objects"""
+
+    @staticmethod
+    def append_columns(newtable):
+        """given a sqlalchemy Table, add the TZAwareDatetime Column objects to it
+        Modifies newtable in place"""
+        for c in TZAwareDateTimeColumns:
+            newtable.append_column(c.copy())
+
+    @staticmethod
+    def get_mapper_properties(newtable):
+        """Given a Table object, return the Mapper definition for TZAwareDateTime columns
+        
+        NOTE: requires that the mapper variable be given this dictionary on creation, OR call
+        ``mapper_object.add_properties(get_mapper_properties(thetable))``"""
+        return {'tzawaredate': composite(TZAwareDateTime, 
+                                     newtable.c.utcdate, 
+                                     newtable.c.tzname,
+                                     newtable.c.tzoffset)
+                }
