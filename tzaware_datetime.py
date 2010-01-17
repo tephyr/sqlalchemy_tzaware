@@ -16,7 +16,7 @@ Usage:
                             
   The columns can be named anything, but they must exist with those types and be reference in that order.
 """
-__version_info__ = ('0', '4', '0')
+__version_info__ = ('0', '5', '0-alpha')
 __version__ = '.'.join(__version_info__)
 __author__ = 'Andrew Ittner <projects@rhymingpanda.com>'
 # stdlib
@@ -26,13 +26,14 @@ from datetime import datetime, timedelta
 from sqlalchemy import Column, DateTime, Unicode, Integer
 from sqlalchemy.orm import composite
 
-# 3rd-party: dateutil <http://labix.org/python-dateutil>
+# dateutil <http://labix.org/python-dateutil>
 from dateutil import tz
 
 # module-level data
 TZAwareDateTimeColumns = (Column('utcdate', DateTime),
                           Column('tzname', Unicode),
                           Column('tzoffset', Integer))
+TZAwareDateTimeColumnNames = ('utcdate', 'tzname', 'tzoffset')
 
 class TZAwareDateTime(object):
     """A composite sqlalchemy column that round-trips timezone-aware datetime objects"""
@@ -95,6 +96,8 @@ class TZAwareDateTime(object):
         newtzname = newdate.tzname()
         if newtzname is not None:
             self.tzname = unicode(newtzname)
+        else:
+            self.tzname = None
 
         # set offset
         self.offsetseconds = self._calc_offset_seconds(newdate.utcoffset())
@@ -105,20 +108,42 @@ class helper(object):
     """functions to insert TZAwareDateTime into database objects"""
 
     @staticmethod
-    def append_columns(newtable):
+    def append_columns(newtable, columnname):
         """given a sqlalchemy Table, add the TZAwareDatetime Column objects to it
         Modifies newtable in place"""
+        # set prefixes for these columns
         for c in TZAwareDateTimeColumns:
-            newtable.append_column(c.copy())
-
+            # NOTE: a copy must be made first, then attributes set;
+            #   setting name & key args in column.copy() does not work
+            newcolumn = c.copy()
+            #assert isinstance(newcolumn, Column)
+            newcolumn.name = '%s_%s' % (columnname, c.name)
+            newcolumn.key = '%s_%s' % (columnname, c.key)
+            newtable.append_column(newcolumn)
+            
     @staticmethod
-    def get_mapper_properties(newtable):
-        """Given a Table object, return the Mapper definition for TZAwareDateTime columns
-        
-        NOTE: requires that the mapper variable be given this dictionary on creation, OR call
-        ``mapper_object.add_properties(get_mapper_properties(thetable))``"""
-        return {'tzawaredate': composite(TZAwareDateTime, 
-                                     newtable.c.utcdate, 
-                                     newtable.c.tzname,
-                                     newtable.c.tzoffset)
-                }
+    def get_mapper_definition(newtable, columnname):
+        """Given a Table object, return the Mapper definition for a TZAwareDateTime column"""
+        # cycle through columns, find the utcdate, tzname, tzoffset columns
+        column_utcdate, column_tzname, column_tzoffset = None, None, None
+        new_column_names = {'utcdate': '%s_%s' % (columnname, TZAwareDateTimeColumnNames[0]),
+                            'tzname': '%s_%s' % (columnname, TZAwareDateTimeColumnNames[1]),
+                            'tzoffset': '%s_%s' % (columnname, TZAwareDateTimeColumnNames[2])
+                            }
+
+        for c in newtable.c:
+            assert isinstance(c, Column)
+            if c.key == new_column_names['utcdate']:
+                column_utcdate = c
+            elif c.key == new_column_names['tzname']:
+                column_tzname = c
+            elif c.key == new_column_names['tzoffset']:
+                column_tzoffset = c
+            if column_utcdate != column_tzname != column_tzoffset != None:
+                break
+
+        return composite(TZAwareDateTime,
+                         column_utcdate,
+                         column_tzname,
+                         column_tzoffset)
+

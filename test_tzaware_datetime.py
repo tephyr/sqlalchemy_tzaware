@@ -159,8 +159,8 @@ class TestDatabaseSetupHelper(unittest.TestCase):
     def tearDown(self):
         clear_mappers()
 
-    def test_get_columns(self):
-        """Get Column objects"""
+    def test_add_columns(self):
+        """Add Column objects"""
         # setup table metadata
         db_metadata = MetaData()
         table_infomatic = Table('infomatic', db_metadata,
@@ -170,30 +170,65 @@ class TestDatabaseSetupHelper(unittest.TestCase):
         self.assertTrue(len(table_infomatic.columns) == 3)
         
         # append 3 TZADT columns
-        tzaware_datetime.helper.append_columns(table_infomatic)
+        tzaware_datetime.helper.append_columns(table_infomatic, 'newdate')
         
         self.assertTrue(len(table_infomatic.columns) == 6)
         
-    def test_get_mapping(self):
-        """retrieve mappings"""
+    def test_add_multiple_columns(self):
+        """Add multiple tzadt columns"""
         # setup table metadata
         db_metadata = MetaData()
+        table_x = Table('x', db_metadata,
+                        Column('id', Integer, primary_key=True),
+                        Column('info', Unicode(255)),
+                        Column('expectedoffset', Integer))
+        self.assertTrue(len(table_x.columns) == 3)
+        
+        # append 3 TZADT columns
+        tzaware_datetime.helper.append_columns(table_x, 'onedate')
+        self.assertEqual(len(table_x.columns), 6)
+        
+        # append 3 more TZADT columns
+        tzaware_datetime.helper.append_columns(table_x, 'twodate')
+        self.assertEqual(len(table_x.columns), 9)
+        
+    def test_set_mapping(self):
+        """set mappings"""
+        # setup table metadata
+        db_metadata = MetaData()
+        datecolumnname = 'newdate'
         table_infomatic = Table('infomatic', db_metadata,
                           Column('id', Integer, primary_key=True),
                           Column('info', Unicode(255)),
                           Column('expectedoffset', Integer))
         
         # append 3 TZADT columns
-        tzaware_datetime.helper.append_columns(table_infomatic)
+        tzaware_datetime.helper.append_columns(table_infomatic, datecolumnname)
         
         # get the mapper dictionary
-        mapper_properties = tzaware_datetime.helper.get_mapper_properties(table_infomatic)
+        column_defintion = tzaware_datetime.helper.get_mapper_definition(table_infomatic, datecolumnname)
         
-        self.assertTrue(isinstance(mapper_properties, dict), "Must return a dict")
-        self.assertEqual(len(mapper_properties.keys()), 1, "Must have one key")
-        self.assertTrue(mapper_properties.has_key('tzawaredate'), "Key name must be 'tzawaredate'")
-        self.assertTrue(isinstance(mapper_properties['tzawaredate'], CompositeProperty))
-    
+        self.assertTrue(isinstance(column_defintion, CompositeProperty))
+ 
+    def test_set_mapping_multiple(self):
+        """set mappings for multiple TZAwareDateTime columns"""
+        # setup table metadata
+        db_metadata = MetaData()
+        datecolumnnames = ('reddate', 'bluedate')
+        table_infomatic = Table('infomatic', db_metadata,
+                          Column('id', Integer, primary_key=True),
+                          Column('info', Unicode(255)),
+                          Column('expectedoffset', Integer))
+        
+        # append 2 sets of TZADT columns
+        tzaware_datetime.helper.append_columns(table_infomatic, datecolumnnames[0])
+        tzaware_datetime.helper.append_columns(table_infomatic, datecolumnnames[1])
+        
+        # get the mapper dictionaries
+        for datecolumnname in datecolumnnames:
+            columndefinition = tzaware_datetime.helper.get_mapper_definition(table_infomatic, datecolumnname)
+            self.assertTrue(isinstance(columndefinition, CompositeProperty))
+
     def test_whole_enchilada(self):
         """test entire database"""
         # create engine
@@ -205,20 +240,15 @@ class TestDatabaseSetupHelper(unittest.TestCase):
                           Column('id', Integer, primary_key=True),
                           Column('info', Unicode(255)),
                           Column('expectedoffset', Integer))
-        
-        tzaware_datetime.helper.append_columns(table_infomatic)
+        tzadtcolumnname = 'thedate'
+        tzaware_datetime.helper.append_columns(table_infomatic, tzadtcolumnname)
         
         # setup mappings
-        mpr = mapper(InfoMatic, table_infomatic, properties={
+        mapper(InfoMatic, table_infomatic, properties={
             'info': table_infomatic.c.info,
             'expectedoffset': table_infomatic.c.expectedoffset,
-            'tzawaredate': composite(tzaware_datetime.TZAwareDateTime, 
-                                     table_infomatic.c.utcdate, 
-                                     table_infomatic.c.tzname,
-                                     table_infomatic.c.tzoffset)
+            tzadtcolumnname: tzaware_datetime.helper.get_mapper_definition(table_infomatic, tzadtcolumnname)
         })
-        
-        mpr.add_properties(tzaware_datetime.helper.get_mapper_properties(table_infomatic))
         
         # create all tables
         db_metadata.create_all(db_myengine)
