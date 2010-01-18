@@ -31,49 +31,72 @@ class TestBasicClass(unittest.TestCase):
         b = tzaware_datetime.TZAwareDateTime()
         self.assertEqual(a.realdate, b.realdate)
 
-    def test_roundtripUTC(self):
+    def test_roundtrip_UTC(self):
         """Compare tzutc & .utcdt values"""
         newdate = datetime.datetime(2010, 1, 15, 8, tzinfo=dateutil.tz.tzutc())
         newtzadt = tzaware_datetime.TZAwareDateTime(utcdt = newdate)
         self.assertEqual(newdate, newtzadt.realdate)
         self.assertEqual(newdate, newtzadt.utcdt)
     
-    def test_roundtripNZST(self):
+    def test_roundtrip_NZST(self):
         """Roundtrip between New Zealand standard time"""
         newdate = datetime.datetime(2010, 1, 15, 8, tzinfo=dateutil.tz.tzstr('NZST'))
         newtzadt = tzaware_datetime.TZAwareDateTime(realdate=newdate)
         self.assertEqual(newdate, newtzadt.realdate)
         self.assertEqual(newdate.astimezone(dateutil.tz.tzutc()), newtzadt.utcdt)
     
-    def test_roundtripPST(self):
+    def test_roundtrip_PST(self):
         """Roundtrip between Pacific standard time"""
         newdate = datetime.datetime(2010, 1, 15, 8, tzinfo=dateutil.tz.gettz('PST'))
         newtzadt = tzaware_datetime.TZAwareDateTime(realdate=newdate)
         self.assertEqual(newdate, newtzadt.realdate)
+        
+    def test_retrieve_all_properties(self):
+        """Retrieve all properties when only one is set"""
+        newdate = datetime.datetime(2010, 1, 15, 9, 30, tzinfo=dateutil.tz.gettz('EST'))
+        newtzadt = tzaware_datetime.TZAwareDateTime()
+        self.assertTrue(newtzadt.utcdt == newtzadt.tzname == newtzadt.offsetseconds == newtzadt.realdate == None,
+                        'Everything should be None')
+        newtzadt.realdate = newdate
+        self.assertFalse(newtzadt.utcdt == None)
+        self.assertFalse(newtzadt.realdate == None)
+        self.assertFalse(newtzadt.offsetseconds == None)
+        
+        newtzadt_naive = tzaware_datetime.TZAwareDateTime(utcdt=datetime.datetime(2010, 1, 15, 9, 45))
+        self.assertFalse(newtzadt_naive.realdate == None, 
+                         '.realdate from naive datetime should NOT be None')
+        self.assertEqual(newtzadt_naive.realdate, 
+                         datetime.datetime(2010, 1, 15, 9, 45, 
+                                           tzinfo=dateutil.tz.tzutc()),
+                         'Naive datetime should generate UTC timestamp')
     
-    def test_compareDatesFromDifferentTimeZones(self):
+    def test_compare_dates_from_different_timezones(self):
         """Compare dates from different timezones"""
-        newdate_Sydney = datetime.datetime(2010, 1, 15, 8, tzinfo=dateutil.tz.gettz('Australia/Sydney'))
-        newdate_Rio = datetime.datetime(2010, 1, 15, 8, tzinfo=dateutil.tz.gettz('America/Sao_Paulo'))
+        newdate_Sydney = datetime.datetime(2010, 1, 15, 8, 
+                                           tzinfo=dateutil.tz.gettz('Australia/Sydney'))
+        newdate_Rio = datetime.datetime(2010, 1, 15, 8, 
+                                        tzinfo=dateutil.tz.gettz('America/Sao_Paulo'))
         newtzadt_Sydney = tzaware_datetime.TZAwareDateTime(realdate=newdate_Sydney)
         newtzadt_Rio = tzaware_datetime.TZAwareDateTime(realdate=newdate_Rio)
         self.assertNotEqual(newtzadt_Sydney.realdate, newtzadt_Rio.realdate)
         self.assertNotEqual(newtzadt_Sydney.utcdt, newtzadt_Rio.utcdt)
         
-    def test_compareOffsets(self):
+    def test_compare_offsets(self):
         """Compare offsets from datetime and TZAwareDateTime objects"""
         newdate_a = datetime.datetime(2010, 1, 15, 8, tzinfo=dateutil.tz.gettz('Europe/Rome'))
         newtzadt_a = tzaware_datetime.TZAwareDateTime(realdate=newdate_a)
         
         # Brazil official time (BRT, aka UTC-3)
-        newdate_b = datetime.datetime(2010, 1, 15, 8, tzinfo=dateutil.tz.gettz('America/Sao Paulo'))
+        newdate_b = datetime.datetime(2010, 1, 15, 8, 
+                                      tzinfo=dateutil.tz.gettz('America/Sao Paulo'))
         newtzadt_b = tzaware_datetime.TZAwareDateTime(realdate=newdate_b)
 
         # compare offsets
         newdate_a_offset = self.calc_offset(newdate_a.utcoffset())
         self.assertEqual(newdate_a_offset, newtzadt_a.offsetseconds)
         
-        self.assertEqual(self.calc_offset(newdate_b.utcoffset()), newtzadt_b.offsetseconds)
+        self.assertEqual(self.calc_offset(newdate_b.utcoffset()), 
+                         newtzadt_b.offsetseconds)
         
     def calc_offset(self, tdelta):
         """properly calculates an offset in seconds (negative when day is 0, positive when day is 1)"""
