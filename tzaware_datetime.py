@@ -16,9 +16,9 @@ Usage:
                             
   The columns can be named anything, but they must exist with those types and be reference in that order.
 """
-__version_info__ = ('0', '5', '0-alpha')
+__version_info__ = ('0', '5', '0')
 __version__ = '.'.join(__version_info__)
-__author__ = 'Andrew Ittner <projects@rhymingpanda.com>'
+__author__ = 'Andrew Ittner <aji@rhymingpanda.com>'
 # stdlib
 from datetime import datetime, timedelta
 
