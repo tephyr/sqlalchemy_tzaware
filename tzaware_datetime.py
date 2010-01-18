@@ -51,7 +51,13 @@ class TZAwareDateTime(object):
             self._set_realdate(realdate)
             
     def __repr__(self):
-        return "<TZDateTime (%s, offset=%s)>" % (self.realdate, self.offsetseconds)
+        if self.tzname:
+            return "<TZDateTime (%s, tzname=%s, offset=%s)>" % (self.realdate, 
+                                                                self.tzname,
+                                                                self.offsetseconds)
+        else:
+            return "<TZDateTime (%s, offset=%s)>" % (self.realdate, 
+                                                     self.offsetseconds)
         
     def __composite_values__(self):
         return [self.utcdt, self.tzname, self.offsetseconds]
