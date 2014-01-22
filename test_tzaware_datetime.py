@@ -6,6 +6,9 @@ Tests:
 - test class without db access
 - test class within db access
 """
+__author__ = 'Andrew Ittner <aji@rhymingpanda.com>'
+__copyright__ = "Public Domain (CC0) <http://creativecommons.org/publicdomain/zero/1.0/>"
+
 # stdlib
 import unittest
 import datetime

@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: iso-8859-1 -*-
 """Demonstration of TZAwareDateTime composite column for sqlalchemy"""
+__author__ = 'Andrew Ittner <aji@rhymingpanda.com>'
+__copyright__ = "Public Domain (CC0) <http://creativecommons.org/publicdomain/zero/1.0/>"
+
 # stdlib
 from datetime import datetime
 
